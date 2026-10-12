@@ -1,5 +1,31 @@
-import { createCanvas, loadImage, type Image, type SKRSContext2D } from "@napi-rs/canvas";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createCanvas, GlobalFonts, loadImage, type Image, type SKRSContext2D } from "@napi-rs/canvas";
 import { logger } from "../lib/logger";
+
+const FONT_FAMILY = "QuoteFont";
+const FONT_FILE = path.join("fonts", "QuoteFont-Bold.ttf");
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+// The bundle runs from <package>/dist, while unbundled source runs from <package>/src/bot.
+const fontCandidates = [
+  path.resolve(moduleDir, "..", FONT_FILE),
+  path.resolve(moduleDir, "..", "..", FONT_FILE),
+  path.resolve(process.cwd(), FONT_FILE),
+  path.resolve(process.cwd(), "artifacts", "api-server", FONT_FILE),
+];
+const fontPath = fontCandidates.find((candidate) => fs.existsSync(candidate));
+
+if (fontPath) {
+  if (!GlobalFonts.registerFromPath(fontPath, FONT_FAMILY)) {
+    logger.warn({ fontPath }, "Failed to register quote font; quote text may not render");
+  }
+} else {
+  logger.warn(
+    { searched: fontCandidates },
+    "Quote font file fonts/QuoteFont-Bold.ttf is missing; quote text may not render",
+  );
+}
 
 const WIDTH = 1400;
 const HEIGHT = 720;
@@ -61,7 +87,7 @@ function drawAvatar(context: SKRSContext2D, avatar: Image | null, fallback: stri
     context.fillStyle = "#202020";
     context.fillRect(AVATAR_X, AVATAR_Y, AVATAR_SIZE, AVATAR_SIZE);
     context.fillStyle = "#ffffff";
-    context.font = "bold 112px Arial, sans-serif";
+    context.font = "bold 112px QuoteFont, sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillText(fallback.slice(0, 1).toUpperCase(), centerX, centerY);
@@ -93,7 +119,7 @@ export async function renderQuoteImage(
   let lineHeight = 54;
   let lines: string[] = [];
   while (fontSize >= 26) {
-    context.font = `bold ${fontSize}px Arial, sans-serif`;
+    context.font = `bold ${fontSize}px QuoteFont, sans-serif`;
     lineHeight = Math.round(fontSize * 1.35);
     lines = wrapText(context, cleanQuote, QUOTE_WIDTH);
     if (lines.length * lineHeight <= QUOTE_HEIGHT) break;
@@ -111,10 +137,10 @@ export async function renderQuoteImage(
   }
 
   context.textBaseline = "alphabetic";
-  context.font = "bold 32px Arial, sans-serif";
+  context.font = "bold 32px QuoteFont, sans-serif";
   context.fillStyle = "#ffffff";
   context.fillText(displayName.slice(0, 48), AVATAR_X, 565);
-  context.font = "24px Arial, sans-serif";
+  context.font = "24px QuoteFont, sans-serif";
   context.fillStyle = "#ffffff";
   context.fillText(`@${username}`.slice(0, 64), AVATAR_X, 605);
 
